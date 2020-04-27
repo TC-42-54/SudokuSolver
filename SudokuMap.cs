@@ -6,251 +6,213 @@ namespace SudokuSolver
 {
     public class SudokuMap
     {
-        public List<List<int>> Map = new List<List<int>>(SudokuMapBuilder.COMMON_SIZE);
+        public List<List<int>> Map = new List<List<int>>(Sudoku.COMMON_SIZE);
         public bool Solved = false;
         public SudokuMap()
         {
-            for (int i = 0; i < SudokuMapBuilder.COMMON_SIZE; i++) {
-                Map.Add(new List<int>());
+            for (int i = 0; i < Sudoku.COMMON_SIZE; i++)
+            {
+                Map.Add(new List<int>(Sudoku.COMMON_SIZE));
             }
         }
 
-        public SudokuMap(List<List<int>> map) {
+        public SudokuMap(List<List<int>> map)
+        {
             Map = map;
         }
 
-        public void FillLineValues(String readedLine, int startIndex)
+        public void FillLineValues(String line, int lineIndex)
         {
-            String[] splittedStringValues;
+            if (String.IsNullOrEmpty(line) || String.IsNullOrWhiteSpace(line))
+                throw new ArgumentException($"The argument {nameof(line)} value is not valid.");
+            if (lineIndex >= Sudoku.COMMON_SIZE || lineIndex < 0)
+                throw new ArgumentOutOfRangeException($"The argument {nameof(lineIndex)} is out of range.");
+            String[] splittedValues = line.Split(" ");
 
-            if (String.IsNullOrEmpty(readedLine) || String.IsNullOrWhiteSpace(readedLine))
-                throw new ArgumentNullException($"The {nameof(readedLine)} parameter is empty or full of white spaces.");
-            splittedStringValues = readedLine.Split(" ");
-            if (splittedStringValues.Length != SudokuMapBuilder.COMMON_SIZE)
-                throw new IndexOutOfRangeException("The expected number of values is not respected in the readed line.");
-            for (int i = 0; i < splittedStringValues.Length; i++)
+            for (int valueIndex = 0; valueIndex < Sudoku.COMMON_SIZE; valueIndex++)
             {
-                this.AddValueToSquare(startIndex, int.Parse(splittedStringValues[i]));
-                if ((i + 1) < SudokuMapBuilder.COMMON_SIZE && (i + 1) % SudokuMapBuilder.SQUARE_SIZE_PER_LINE == 0) startIndex++;
+                Map[lineIndex].Add(int.Parse(splittedValues[valueIndex]));
             }
         }
 
-        private void AddValueToSquare(int squareIndex, int value)
+        public bool IsValueInSquare(int lineIndex, int valueIndex, int value)
         {
-            if (Map.Count <= squareIndex)
-                throw new ArgumentOutOfRangeException($"The provided {nameof(squareIndex)} is out of range compared to the Map size.");
-            if (Map[squareIndex].Count == SudokuMapBuilder.COMMON_SIZE)
-                throw new ArgumentOutOfRangeException($"The Square at index {squareIndex} is already filled by values.");
-            Map[squareIndex].Add(value);
-        }
-
-        private bool IsValueCorrect(int squareIndex, int valueIndex, int value)
-        {
-            var lineSum = GetLineSum(squareIndex, valueIndex) + value;
-            var columnSum = GetColumnSum(squareIndex, valueIndex) + value;
-            var squareSum = GetSquareSum(squareIndex) + value;
-            return lineSum <= SudokuMapBuilder.SUM_VALUES_LIMIT &&
-                columnSum <= SudokuMapBuilder.SUM_VALUES_LIMIT &&
-                squareSum <= SudokuMapBuilder.SUM_VALUES_LIMIT &&
-                !IsAlreadyInLine(squareIndex, valueIndex, value) &&
-                !IsAlreadyInColumn(squareIndex, valueIndex, value) &&
-                !SquareHasValue(squareIndex, value);
-        }
-
-        private List<int> UsableValues(int squareIndex)
-        {
-            List<int> usableValues = new List<int>();
-
-            SudokuMapBuilder.VALID_VALUES.ForEach(validValue =>
+            bool IsValueAlreadyInSquare = false;
+            int lineIndexStart = (lineIndex / Sudoku.SQUARE_SIZE) * Sudoku.SQUARE_SIZE;
+            int valueIndexStart = (valueIndex / Sudoku.SQUARE_SIZE) * Sudoku.SQUARE_SIZE;
+            for (int checkedLineIndex = lineIndexStart; checkedLineIndex < (lineIndexStart + Sudoku.SQUARE_SIZE); checkedLineIndex++)
             {
-                if (!Map[squareIndex].Exists(existingValue => existingValue == validValue)) usableValues.Add(validValue);
-            });
-
-            return usableValues;
-        }
-
-        private bool SquareHasValue(int squareIndex, int value) => Map[squareIndex].Exists(existingValue => existingValue == value);
-
-        private int GetSquareSum(int squareIndex)
-        {
-            int sum = 0;
-            Map[squareIndex].ForEach(value => sum += value);
-            return sum;
-        }
-
-        private bool IsAlreadyInLine(int squareIndex, int valueIndex, int value)
-        {
-            bool isInLine = false;
-            int firstSquareIndex = GetFirstInLineFromIndex(squareIndex);
-            int firstValueIndex = GetFirstInLineFromIndex(valueIndex);
-            int squareIndexLimit = firstSquareIndex + SudokuMapBuilder.SQUARE_SIZE_PER_LINE;
-            int valueIndexLimit = firstValueIndex + SudokuMapBuilder.SQUARE_SIZE_PER_LINE;
-
-            for (int checkedSquareIndex = firstSquareIndex; checkedSquareIndex < squareIndexLimit; checkedSquareIndex++)
-            {
-                for (int checkedValueIndex = firstValueIndex; checkedValueIndex < valueIndexLimit; checkedValueIndex++) {
-                    if (checkedSquareIndex != squareIndex || checkedValueIndex != valueIndex) {
-                        if (Map[checkedSquareIndex][checkedValueIndex] == value) isInLine = true;
-                    }
-                }
-            }
-
-            return isInLine;
-        }
-
-        private bool IsAlreadyInColumn(int squareIndex, int valueIndex, int value)
-        {
-            bool isInColumn = false;
-            int firstSquareIndex = GetFirstColumnFromIndex(squareIndex);
-            int firstValueIndex = GetFirstColumnFromIndex(valueIndex);
-            int squareIndexLimit = firstSquareIndex + (SudokuMapBuilder.SQUARE_SIZE_PER_LINE * 2);
-            int valueIndexLimit = firstValueIndex + (SudokuMapBuilder.SQUARE_SIZE_PER_LINE * 2);
-
-            for (int checkedSquareIndex = firstSquareIndex; checkedSquareIndex <= squareIndexLimit; checkedSquareIndex += SudokuMapBuilder.SQUARE_SIZE_PER_LINE)
-            {
-                for (int checkedValueIndex = firstValueIndex; checkedValueIndex <= valueIndexLimit; checkedValueIndex += SudokuMapBuilder.SQUARE_SIZE_PER_LINE)
+                for (int checkedValueIndex = valueIndexStart; checkedValueIndex < (valueIndexStart + Sudoku.SQUARE_SIZE); checkedValueIndex++)
                 {
-                    if (checkedSquareIndex != squareIndex || checkedValueIndex != valueIndex)
+                    if (((checkedLineIndex != lineIndex) || (checkedValueIndex != valueIndex)) &&
+                        (Map[checkedLineIndex][checkedValueIndex] == value))
                     {
-                        if (Map[checkedSquareIndex][checkedValueIndex] == value) isInColumn = true;
+                        IsValueAlreadyInSquare = true;
+                        break;
                     }
                 }
             }
-
-            return isInColumn;
+            return IsValueAlreadyInSquare;
         }
 
-        private bool IsSquareValid(int squareIndex) => GetSquareSum(squareIndex) <= SudokuMapBuilder.SUM_VALUES_LIMIT;
-
-        private int GetLineSum(int squareIndex, int valueIndex)
+        public bool IsValueInLine(int lineIndex, int valueIndex, int value)
         {
-            int firstSquareIndex = GetFirstInLineFromIndex(squareIndex);
-            int firstValueIndex = GetFirstInLineFromIndex(valueIndex);
-            int squareIndexLimit = firstSquareIndex + SudokuMapBuilder.SQUARE_SIZE_PER_LINE;
-            int valueIndexLimit = firstValueIndex + SudokuMapBuilder.SQUARE_SIZE_PER_LINE;
-            int sum = 0;
-
-            for (var squareLineIndex = firstSquareIndex; squareLineIndex < squareIndexLimit; squareLineIndex++)
+            var IsValueAlreadyInLine = false;
+            for (int checkedValueIndex = 0; checkedValueIndex < Sudoku.COMMON_SIZE; checkedValueIndex++)
             {
-                for (int valueLineIndex = firstValueIndex; valueLineIndex < valueIndexLimit; valueLineIndex++)
+                if (checkedValueIndex != valueIndex && Map[lineIndex][checkedValueIndex] == value)
                 {
-                    sum += Map[squareLineIndex][valueLineIndex];
+                    IsValueAlreadyInLine = true;
+                    break;
                 }
             }
-
-            return sum;
+            return IsValueAlreadyInLine;
         }
 
-        private int GetColumnSum(int squareIndex, int valueIndex)
+        public bool IsValueInColumn(int lineIndex, int valueIndex, int value)
         {
-            int firstSquareIndex = GetFirstColumnFromIndex(squareIndex);
-            int firstValueIndex = GetFirstColumnFromIndex(valueIndex);
-            int squareIndexLimit = firstSquareIndex + SudokuMapBuilder.SQUARE_SIZE_PER_LINE;
-            int valueIndexLimit = firstValueIndex + SudokuMapBuilder.SQUARE_SIZE_PER_LINE;
-            int sum = 0;
-
-            for (var squareLineIndex = firstSquareIndex; squareLineIndex < squareIndexLimit; squareLineIndex += SudokuMapBuilder.SQUARE_SIZE_PER_LINE)
+            var IsValueAlreadyInColumn = false;
+            for (int checkedLineIndex = 0; checkedLineIndex < Sudoku.COMMON_SIZE; checkedLineIndex++)
             {
-                for (int valueLineIndex = firstValueIndex; valueLineIndex < valueIndexLimit; valueLineIndex += SudokuMapBuilder.SQUARE_SIZE_PER_LINE)
+                if (checkedLineIndex != lineIndex && Map[checkedLineIndex][valueIndex] == value)
                 {
-                    sum += Map[squareLineIndex][valueLineIndex];
+                    IsValueAlreadyInColumn = true;
+                    break;
                 }
             }
-
-            return sum;
+            return IsValueAlreadyInColumn;
         }
-        private bool IsLineValid(int squareIndex, int valueIndex) => GetLineSum(squareIndex, valueIndex) <= SudokuMapBuilder.SUM_VALUES_LIMIT;
 
-        private bool IsColumnValid(int squareIndex, int valueIndex) => GetColumnSum(squareIndex, valueIndex) <= SudokuMapBuilder.SUM_VALUES_LIMIT;
-
-        static public int GetFirstColumnFromIndex(int index)
+        public bool IsValueCorrect(int lineIndex, int valueIndex, int value)
         {
-            if (index < SudokuMapBuilder.SQUARE_SIZE_PER_LINE)
-                return index;
-            
-            return index - ((index / SudokuMapBuilder.SQUARE_SIZE_PER_LINE) * SudokuMapBuilder.SQUARE_SIZE_PER_LINE);
+            return !IsValueInLine(lineIndex, valueIndex, value) &&
+                !IsValueInColumn(lineIndex, valueIndex, value) &&
+                !IsValueInSquare(lineIndex, valueIndex, value);
         }
 
-        static public int GetFirstInLineFromIndex(int index)
+        public bool Resolve(int lineIndex, int valueIndex)
         {
-            if (index % SudokuMapBuilder.SQUARE_SIZE_PER_LINE == 0)
-                return index;
-            if ((index + 1) % SudokuMapBuilder.SQUARE_SIZE_PER_LINE == 0)
-                return (index + 1) - SudokuMapBuilder.SQUARE_SIZE_PER_LINE;
-            return index - 1;
-        }
-
-        private SudokuNextIndex GetNextIndexes(int squareIndex, int valueIndex, bool write) {
-            return new SudokuNextIndex(squareIndex, valueIndex, write);
-        }
-
-        public async Task<bool> ResolveMap() {
-            int tasks = 1;
-            for (var idx = 1; idx <= SudokuMapBuilder.COMMON_SIZE; idx++) {
-                Task.Run(async () =>
+            int nextLineIndex = ((valueIndex + 1) == Sudoku.COMMON_SIZE) ? (lineIndex + 1) : lineIndex;
+            int nextValueIndex = ((valueIndex + 1) == Sudoku.COMMON_SIZE) ? 0 : (valueIndex + 1);
+            if (Map[lineIndex][valueIndex] == 0)
+            {
+                for (var newValue = 1; newValue <= Sudoku.COMMON_SIZE; newValue++)
                 {
-                    var index = tasks;
-                    tasks++;
-                    SudokuMap subMap = new SudokuMap(Map);
-                    if (subMap.Resolve(0, 0, index))
+                    if (IsValueCorrect(lineIndex, valueIndex, newValue))
                     {
-                        Map = subMap.Map;
-                        Solved = true;
-                        return;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                });
-                await Task.Delay(30);
-            }
-            while (!Solved)
-            {
-                await Task.Delay(2);
-            }
-            PrintGrid();
-            Console.WriteLine("The map was solved !");
-            return Solved;
-        }
-
-        public bool Resolve(int squareIndex, int valueIndex, int startValue)
-        {
-            SudokuNextIndex nextIndexes = GetNextIndexes(squareIndex, valueIndex, false);
-
-            if (Map[squareIndex][valueIndex] == 0)
-            {
-                for (var usableValue = startValue; usableValue <= SudokuMapBuilder.COMMON_SIZE; usableValue++)
-                {
-                    if (IsValueCorrect(squareIndex, valueIndex, usableValue))
-                    {
-                        Map[squareIndex][valueIndex] = usableValue;
-                        if (Map.Count == (squareIndex + 1) && Map[squareIndex].Count == (valueIndex + 1)) return true;
-                        if (Resolve(nextIndexes.nextSquareIndex, nextIndexes.nextValueIndex, 1)) return true;
+                        Map[lineIndex][valueIndex] = newValue;
+                        if (Map.Count == (lineIndex + 1) && Map[lineIndex].Count == (valueIndex + 1))
+                        {
+                            return true;
+                        }
+                        else if (Resolve(nextLineIndex, nextValueIndex))
+                        {
+                            return true;
+                        }
                     }
                 }
-                Map[squareIndex][valueIndex] = 0;
+                Map[lineIndex][valueIndex] = 0;
                 return false;
             }
-            if (Map.Count == (squareIndex + 1) && Map[squareIndex].Count == (valueIndex + 1)) return true;
-            return Resolve(nextIndexes.nextSquareIndex, nextIndexes.nextValueIndex, 1);
+            if (Map.Count == (lineIndex + 1) && Map[lineIndex].Count == (valueIndex + 1))
+                return true;
+            return Resolve(nextLineIndex, nextValueIndex);
+        }
+
+        private bool ResolveReverse(int lineIndex, int valueIndex)
+        {
+            int nextLineIndex = (valueIndex == 0) ? (lineIndex - 1) : lineIndex;
+            int nextValueIndex = (valueIndex == 0) ? Sudoku.COMMON_SIZE - 1 : (valueIndex - 1);
+            if (Map[lineIndex][valueIndex] == 0)
+            {
+                for (var newValue = 1; newValue <= Sudoku.COMMON_SIZE; newValue++)
+                {
+                    if (IsValueCorrect(lineIndex, valueIndex, newValue))
+                    {
+                        Map[lineIndex][valueIndex] = newValue;
+                        if (lineIndex == 0 && valueIndex == 0)
+                        {
+                            return true;
+                        }
+                        else if (ResolveReverse(nextLineIndex, nextValueIndex))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                Map[lineIndex][valueIndex] = 0;
+                return false;
+            }
+            if (lineIndex == 0 && valueIndex == 0)
+                return true;
+            return ResolveReverse(nextLineIndex, nextValueIndex);
+        }
+
+        public bool ResolveMap()
+        {
+            bool executionFinished = false;
+            Solved = false;
+            SudokuMap[] subMaps = new SudokuMap[2] { new SudokuMap(Map),  new SudokuMap(Map)};
+            Task<bool> resolveTask = Task.Run(() => {
+                return subMaps[0].Resolve(0, 0) ? true : false;
+            });
+            Task<bool> resolveReverseTask = Task.Run(() => {
+                return subMaps[1].ResolveReverse(8, 8) ? true : false;
+            });
+            Task<bool> timeoutTask = Task.Run(async () =>
+            {
+                await Task.Delay(10000);
+                return false;
+            });
+
+            resolveTask.ContinueWith(task =>
+            {
+                if (!executionFinished)
+                {
+                    task.Wait();
+                    if (task.Result)
+                    {
+                        Solved = true;
+                        Map = subMaps[0 ].Map;
+                        Console.WriteLine("\nThe Grid was solved within the time ! (limit 10 seconds)\n\n");
+                        executionFinished = true;
+                    }
+                }
+            });
+            resolveReverseTask.ContinueWith(task =>
+            {
+                if (!executionFinished)
+                {
+                    task.Wait();
+                    if (task.Result)
+                    {
+                        Solved = true;
+                        Map = subMaps[1].Map;
+                        Console.WriteLine("\nThe Grid was solved within the time ! (limit 10 seconds)\n\n");
+                        executionFinished = true;
+                    }
+                }
+            });
+            timeoutTask.ContinueWith(task =>
+            {
+                if (!executionFinished) {
+                    task.Wait();
+                    executionFinished = true;
+                    Console.WriteLine("\nThe Grid wasn't solved within the time ! (10 seconds)\n\n");
+                }
+            });
+            while (!executionFinished) { }
+
+            return executionFinished && Solved;
         }
 
         public void PrintGrid()
         {
-            SudokuNextIndex nextIndexes;
-
-            for (var usedSquareIndex = 0; usedSquareIndex < SudokuMapBuilder.COMMON_SIZE;)
+            Map.ForEach(line =>
             {
-                for (var valueIndex = 0; valueIndex < SudokuMapBuilder.COMMON_SIZE;) {
-                    Console.Write($" [{Map[usedSquareIndex][valueIndex]}] ");
-                    if ((valueIndex + 1) == SudokuMapBuilder.COMMON_SIZE && (usedSquareIndex + 1) == SudokuMapBuilder.COMMON_SIZE) return;
-                    nextIndexes = GetNextIndexes(usedSquareIndex, valueIndex, true);
-                    valueIndex = nextIndexes.nextValueIndex;
-                    usedSquareIndex = nextIndexes.nextSquareIndex;
-                }
-            }
-            Console.WriteLine("\n");
+                line.ForEach(value => Console.Write($" {value} "));
+                Console.WriteLine("\n");
+            });
         }
     }
 }
