@@ -9,7 +9,10 @@ namespace SudokuSolver
         static void Main(string[] args)
         {
             SudokuMap map = SudokuMapBuilder.GenerateMap(args[0]);
-            Task.WaitAll(map.ResolveMap());
+            if (map.ResolveMap())
+            {
+                map.PrintGrid();
+            }
         }
     }
 }
